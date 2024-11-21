@@ -2,18 +2,15 @@
 function GetAD-PrivledgedUsers {
     [CmdletBinding()]
     Param (
-        [Parameter(position = 0, Mandatory=$false, ValueFromPipeline=$true)]
-        [string[]]$Domain, 
-        [Parameter(position = 1, Mandatory=$false, ValueFromPipeline=$true)]
-        [string[]]$OutputLocal
+        [string]$Domain, 
+        [string]$OutputLocal
     )
     BEGIN { 
         # Import the ActiveDirectory module
         Try { Import-Module ActiveDirectory -ErrorAction Stop }
         Catch { Write-Host "Unable to load Active Directory module, is RSAT installed?"; Break }
         $Results = @()
-        $file = "User / Group"
-
+       
         # Define the privileged groups to check
         $privilegedGroups = @(
             "Domain Admins",
@@ -22,6 +19,22 @@ function GetAD-PrivledgedUsers {
             "Administrators",
             "Account Operators"
         )
+
+        #if output is supposed to go to a file, initialize that file.
+        $OutputToFile = $false
+        $ReportDate = Get-Date -format "yyyy-MMM-dd"
+        if (-not [string]::IsNullOrEmpty($OutputLocal)){
+            Write-Host "Output local is specified " $OutputLocal 
+            $OutputToFile = $true
+            New-Item -Path $OutputLocal -ItemType File -Force
+            "                Privledged User Report                   ", $ReportDate | Add-Content -Path $OutputLocal
+            "User Name         /     Group" | Add-Content -Path $OutputLocal
+            "---------------         ------------" | Add-Content -Path $OutputLocal
+        } 
+        else {
+            <# write to screen #>
+            Write-Output "output only to screen"
+        }
     }
     PROCESS {
         # Iterate over each privileged group
@@ -33,11 +46,15 @@ function GetAD-PrivledgedUsers {
             foreach ($member in $members) {
                 # Check if the member is a user
                 if ($member.ObjectClass -eq "user") {
-                    # Output the user's details
-                    Write-Output "User: $($member.Name)"
-                    Write-Output "Group: $group"
-                    Write-Output "-------------------------"
-                    $File += $($member.Name), " / ", $group 
+                    if ($OutputToFile -eq $true) {
+                        # Apend the user's datails to file
+                        $member.Name + "   /   " + $group | Add-Content -Path $OutputLocal
+                    }
+                    else {
+                        # Output the user's details to screen
+                        Write-Output "User: $($member.Name) Group: $group"
+                        Write-Output "-------------------------"
+                    } 
                 }
             }
         }
@@ -63,16 +80,6 @@ function GetAD-PrivledgedUsers {
         }
     }
     END {
-        #Output to screen or to file
-        if (-not [string]::IsNullOrEmpty($OutputLocal)){
-            Write-Output "Output local is specified for output file"
-            "$File" | Out-File -FilePath $OutputLocal 
-        } 
-        else {
-            <# write to screen #>
-            Write-Output "output only to screen"
-            $Results
-        }
+        $Results
     }   
 }
-
