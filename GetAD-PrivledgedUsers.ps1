@@ -2,16 +2,17 @@
 function GetAD-PrivledgedUsers {
     [CmdletBinding()]
     Param (
-        [Parameter(
-            ValueFromPipeline,
-            ValueFromPipelinePropertyName)]
-        [string[]]$DMs
+        [Parameter(position = 0, Mandatory=$false, ValueFromPipeline=$true)]
+        [string[]]$Domain, 
+        [Parameter(position = 1, Mandatory=$false, ValueFromPipeline=$true)]
+        [string[]]$OutputLocal
     )
     BEGIN { 
         # Import the ActiveDirectory module
         Try { Import-Module ActiveDirectory -ErrorAction Stop }
         Catch { Write-Host "Unable to load Active Directory module, is RSAT installed?"; Break }
         $Results = @()
+        $file = "User / Group"
 
         # Define the privileged groups to check
         $privilegedGroups = @(
@@ -36,6 +37,7 @@ function GetAD-PrivledgedUsers {
                     Write-Output "User: $($member.Name)"
                     Write-Output "Group: $group"
                     Write-Output "-------------------------"
+                    $File += $($member.Name), " / ", $group 
                 }
             }
         }
@@ -62,10 +64,15 @@ function GetAD-PrivledgedUsers {
     }
     END {
         #Output to screen or to file
-        $Results
+        if (-not [string]::IsNullOrEmpty($OutputLocal)){
+            Write-Output "Output local is specified for output file"
+            "$File" | Out-File -FilePath $OutputLocal 
+        } 
+        else {
+            <# write to screen #>
+            Write-Output "output only to screen"
+            $Results
+        }
     }   
 }
-
-GetAD-PrivledgedUsers
-
 
